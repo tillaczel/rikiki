@@ -13,9 +13,10 @@
                 <div class="row">
                     <div class="col-md-6">
                         <h5>Game Information</h5>
-                        <p><strong>Created:</strong> {{ game.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
                         {% if game.started_at %}
                             <p><strong>Started:</strong> {{ game.started_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        {% else %}
+                            <p><strong>Started:</strong> {{ game.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
                         {% endif %}
                         {% if game.ended_at %}
                             <p><strong>Ended:</strong> {{ game.ended_at.strftime('%Y-%m-%d %H:%M') }}</p>
@@ -33,7 +34,7 @@
                             {% endif %}
                         </p>
                         <p><strong>Conflict Rule:</strong> 
-                            {% if game.force_conflict %}
+                            {% if force_conflict %}
                                 <span class="badge bg-danger">Force Conflict</span>
                             {% else %}
                                 <span class="badge bg-success">Allow Equal Sum</span>
@@ -127,7 +128,7 @@
                                 {% else %}
                                     <span class="badge fs-6" style="background: linear-gradient(135deg, #1b5e20 0%, #0d4f1a 100%); color: white;">{{ game_player.total_points }} points</span>
                                 {% endif %}
-                            {% endif %}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        {% endif %}
                         </div>
                         <div class="col-md-2">
                             {% set stats = player_stats[loop.index0] %}

@@ -22,7 +22,12 @@
                                         <h6 class="card-title">Game #{{ game.id }}</h6>
                                         <p class="card-text">
                                             <strong>Current Round:</strong> {{ game.current_round }} / {{ game.max_rounds }}<br>
-                                            <strong>Started:</strong> {{ game.created_at.strftime('%Y-%m-%d %H:%M') }}<br>
+                                            <strong>Started:</strong> 
+                                            {% if game.started_at %}
+                                                {{ game.started_at.strftime('%Y-%m-%d %H:%M') }}
+                                            {% else %}
+                                                {{ game.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                            {% endif %}<br>
                                             <strong>Players:</strong> {{ game.game_players|length }}
                                         </p>
                                     </div>

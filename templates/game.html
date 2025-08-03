@@ -64,7 +64,7 @@
                         </div>
                         <div class="col-md-3">
                             <strong>Conflict rule:</strong> 
-                            {% if game.force_conflict %}
+                            {% if force_conflict %}
                                 <span class="text-danger">Force conflict</span>
                             {% else %}
                                 <span class="text-success">Allow equal sum</span>
@@ -355,10 +355,11 @@
             </div>
             <div class="card-body">
                 <p><strong>Game ID:</strong> {{ game.id }}</p>
-                <p><strong>Created:</strong> {{ game.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-                {% if game.started_at %}
-                    <p><strong>Started:</strong> {{ game.started_at.strftime('%Y-%m-%d %H:%M') }}</p>
-                {% endif %}
+                                                                {% if game.started_at %}
+                            <p><strong>Started:</strong> {{ game.started_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        {% else %}
+                            <p><strong>Started:</strong> {{ game.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        {% endif %}
                 <p><strong>Current Round:</strong> {{ game.current_round }} / {{ game.max_rounds }}</p>
                 <p><strong>Status:</strong> 
                     {% if game.is_active %}
@@ -449,6 +450,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const sumAlert = document.getElementById('sumAlert');
     const currentSumSpan = document.getElementById('currentSum');
     const maxCards = parseInt('{{ current_round.cards_per_player }}');
+    const forceConflict = {{ 'true' if force_conflict else 'false' }};
+    console.log('Force conflict setting:', forceConflict);
+    console.log('Max cards:', maxCards);
     
     function updateGuessSum() {
         let sum = 0;
@@ -465,15 +469,22 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (sum >= 0) {
             sumAlert.style.display = 'block';
-            if (sum === maxCards) {
+            console.log('Sum:', sum, 'MaxCards:', maxCards, 'ForceConflict:', forceConflict);
+            if (forceConflict && sum === maxCards) {
+                console.log('Blocking submission - force conflict enabled');
                 sumAlert.className = 'alert alert-danger mt-3';
                 sumAlert.innerHTML = `<strong>Current Sum:</strong> <span id="currentSum">${sum}</span><br><small>⚠️ Sum equals ${maxCards} - this is not allowed!</small>`;
                 submitGuessesBtn.disabled = true;
                 guessesHint.textContent = `Sum equals ${maxCards} - not allowed!`;
                 guessesHint.className = 'text-danger d-block mt-1';
             } else {
+                console.log('Allowing submission');
                 sumAlert.className = 'alert alert-info mt-3';
-                sumAlert.innerHTML = `<strong>Current Sum:</strong> <span id="currentSum">${sum}</span><br><small>Sum must not equal ${maxCards}</small>`;
+                if (forceConflict) {
+                    sumAlert.innerHTML = `<strong>Current Sum:</strong> <span id="currentSum">${sum}</span><br><small>Sum must not equal ${maxCards}</small>`;
+                } else {
+                    sumAlert.innerHTML = `<strong>Current Sum:</strong> <span id="currentSum">${sum}</span><br><small>Sum can equal ${maxCards} (conflict allowed)</small>`;
+                }
                 submitGuessesBtn.disabled = false;
                 guessesHint.textContent = 'Ready to submit!';
                 guessesHint.className = 'text-success d-block mt-1';

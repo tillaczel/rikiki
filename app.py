@@ -31,6 +31,7 @@ class Game(db.Model):
     current_dealer_index = db.Column(db.Integer, default=0)  # Index of current dealer in player order
     ended_early = db.Column(db.Boolean, default=False)  # Whether game was ended early
     deck_type = db.Column(db.String(10), default='single')  # 'single' or 'double'
+    force_conflict = db.Column(db.Boolean, default=True)  # Whether to force conflict (prevent equal sums)
     
     def __repr__(self):
         return f'<Game {self.id}>'
@@ -153,8 +154,9 @@ def new_game():
             flash('At least 2 players are required!', 'error')
             return redirect(url_for('new_game'))
         
-        # Get deck type
+        # Get deck type and force conflict setting
         deck_type = request.form.get('deck_type', 'single')
+        force_conflict = request.form.get('force_conflict', 'yes') == 'yes'
         
         # Calculate max rounds based on deck type
         n_players = len(player_ids)
@@ -167,7 +169,7 @@ def new_game():
         # Create new game with random dealer
         import random
         initial_dealer_index = random.randint(0, len(player_ids) - 1)
-        new_game = Game(max_rounds=max_rounds, current_dealer_index=initial_dealer_index, deck_type=deck_type)
+        new_game = Game(max_rounds=max_rounds, current_dealer_index=initial_dealer_index, deck_type=deck_type, force_conflict=force_conflict)
         db.session.add(new_game)
         db.session.commit()
         
@@ -258,12 +260,14 @@ def game(game_id):
         
         chart_data['datasets'].append(player_data)
     
+    force_conflict_value = getattr(game, 'force_conflict', True)
     return render_template('game.html', 
                          game=game, 
                          current_round=current_round,
                          round_results=round_results,
                          game_players=ordered_players,
-                         chart_data=chart_data)
+                         chart_data=chart_data,
+                         force_conflict=force_conflict_value)
 
 @app.route('/submit_guesses', methods=['POST'])
 def submit_guesses():
@@ -287,8 +291,9 @@ def submit_guesses():
             guesses[player_id] = guess
             total_guess += guess
     
-    # Check if total guesses equals number of cards
-    if total_guess == current_round.cards_per_player:
+    # Check if total guesses equals number of cards (only if force_conflict is enabled)
+    force_conflict = getattr(game, 'force_conflict', True)
+    if force_conflict and total_guess == current_round.cards_per_player:
         flash(f'Total guesses ({total_guess}) cannot equal the number of cards ({current_round.cards_per_player}) in this round! Please adjust your guesses.', 'error')
         return redirect(url_for('game', game_id=game_id))
     
@@ -493,6 +498,7 @@ def game_summary(game_id):
             'accuracy': accuracy
         })
     
+    force_conflict_value = getattr(game, 'force_conflict', True)
     return render_template('game_summary.html', 
                          game=game, 
                          game_players=game_players,
@@ -504,7 +510,8 @@ def game_summary(game_id):
                          winner=winner,
                          max_points=max_points,
                          min_points=min_points,
-                         point_spread=point_spread)
+                         point_spread=point_spread,
+                         force_conflict=force_conflict_value)
 
 @app.route('/edit_game/<int:game_id>', methods=['GET', 'POST'])
 def edit_game(game_id):
