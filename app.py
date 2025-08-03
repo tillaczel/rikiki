@@ -496,6 +496,7 @@ def game_summary(game_id):
     return render_template('game_summary.html', 
                          game=game, 
                          game_players=game_players,
+                         rounds=rounds,
                          player_stats=player_stats,
                          chart_data=chart_data,
                          total_rounds=total_rounds,
@@ -594,16 +595,7 @@ def edit_game(game_id):
                          rounds=round_data,
                          game_players=game_players)
 
-@app.route('/game_history/<int:game_id>')
-def game_history(game_id):
-    game = Game.query.get_or_404(game_id)
-    rounds = Round.query.filter_by(game_id=game_id).order_by(Round.round_number).all()
-    game_players = GamePlayer.query.filter_by(game_id=game_id).all()
-    
-    return render_template('game_history.html', 
-                         game=game, 
-                         rounds=rounds, 
-                         game_players=game_players)
+
 
 @app.route('/delete_game/<int:game_id>', methods=['POST'])
 def delete_game(game_id):

@@ -32,6 +32,13 @@
                                 <span class="badge bg-secondary">Single Deck (52 cards)</span>
                             {% endif %}
                         </p>
+                        <p><strong>Conflict Rule:</strong> 
+                            {% if game.force_conflict %}
+                                <span class="badge bg-danger">Force Conflict</span>
+                            {% else %}
+                                <span class="badge bg-success">Allow Equal Sum</span>
+                            {% endif %}
+                        </p>
                         <p><strong>Total Rounds:</strong> {{ total_rounds }}</p>
                         <p><strong>Players:</strong> {{ total_players }}</p>
                         {% if game.ended_early %}
@@ -92,7 +99,16 @@
                             <h5 class="mb-0">{{ game_player.player.nickname }}</h5>
                         </div>
                         <div class="col-md-3">
-                            <span class="badge bg-primary fs-6">{{ game_player.total_points }} points</span>
+                            {% set max_points = game_players|map(attribute='total_points')|max %}
+                            {% set min_points = game_players|map(attribute='total_points')|min %}
+                            {% set point_range = max_points - min_points %}
+                            {% if point_range == 0 %}
+                                <span class="badge bg-primary fs-6">{{ game_player.total_points }} points</span>
+                            {% else %}
+                                {% set normalized = (game_player.total_points - min_points) / point_range %}
+                                {% set shade = (normalized * 0.8 + 0.2) * 100 %}
+                                <span class="badge fs-6" style="background-color: hsl(210, 100%, {{ shade|round }}%); color: white;">{{ game_player.total_points }} points</span>
+                            {% endif %}
                         </div>
                         <div class="col-md-2">
                             {% set stats = player_stats[loop.index0] %}
@@ -136,8 +152,75 @@
                     <a href="{{ url_for('edit_game', game_id=game.id) }}" class="btn btn-warning">✏️ Edit Game</a>
                     <a href="{{ url_for('index') }}" class="btn btn-primary">Back to Home</a>
                     <a href="{{ url_for('new_game') }}" class="btn btn-success">Start New Game</a>
-                    <a href="{{ url_for('game_history', game_id=game.id) }}" class="btn btn-outline-info">View Detailed History</a>
+                    <a href="{{ url_for('history') }}" class="btn btn-outline-info">View All Games</a>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Round Information -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4>📊 Game {{ game.id }} - Complete History</h4>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Started:</strong> 
+                        {% if game.started_at %}
+                            {{ game.started_at.strftime('%Y-%m-%d %H:%M') }}
+                        {% else %}
+                            {{ game.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Total Rounds:</strong> {{ game.max_rounds }}
+                    </div>
+                </div>
+
+                {% for round in rounds %}
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6>Round {{ round.round_number }} - {{ round.cards_per_player }} cards per player</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if round.is_completed %}
+                                {% set round_results = round.results %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Player</th>
+                                                <th>Guess</th>
+                                                <th>Hits</th>
+                                                <th>Points</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for result in round_results %}
+                                                <tr>
+                                                    <td><strong>{{ result.player.nickname }}</strong></td>
+                                                    <td>{{ result.guess }}</td>
+                                                    <td>{{ result.hits }}</td>
+                                                    <td>
+                                                        <span class="badge {% if result.guess == result.hits %}bg-success{% else %}bg-warning{% endif %}">
+                                                            {{ result.points }}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted">Round not completed</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
             </div>
         </div>
     </div>

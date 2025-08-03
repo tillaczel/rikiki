@@ -56,13 +56,21 @@
                 <!-- Round Info above game content -->
                 <div class="alert alert-info mb-3">
                     <div class="row">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <strong>Cards per player:</strong> {{ current_round.cards_per_player }}
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <strong>Total cards:</strong> {{ current_round.cards_per_player * game_players|length }}
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <strong>Conflict rule:</strong> 
+                            {% if game.force_conflict %}
+                                <span class="text-danger">Force conflict</span>
+                            {% else %}
+                                <span class="text-success">Allow equal sum</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
                             <strong>Total guesses cannot equal:</strong> {{ current_round.cards_per_player }}
                         </div>
                     </div>
@@ -259,7 +267,16 @@
                                         <strong>{{ game_player.player.nickname }}</strong>
                                     </td>
                                     <td>
-                                        <span class="badge bg-primary">{{ game_player.total_points }}</span>
+                                        {% set max_points = game_players|map(attribute='total_points')|max %}
+                                        {% set min_points = game_players|map(attribute='total_points')|min %}
+                                        {% set point_range = max_points - min_points %}
+                                        {% if point_range == 0 %}
+                                            <span class="badge bg-primary">{{ game_player.total_points }}</span>
+                                        {% else %}
+                                            {% set normalized = (game_player.total_points - min_points) / point_range %}
+                                            {% set shade = (normalized * 0.8 + 0.2) * 100 %}
+                                            <span class="badge" style="background-color: hsl(210, 100%, {{ shade|round }}%); color: white;">{{ game_player.total_points }}</span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}
