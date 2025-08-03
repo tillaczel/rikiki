@@ -261,13 +261,22 @@ def game(game_id):
         chart_data['datasets'].append(player_data)
     
     force_conflict_value = getattr(game, 'force_conflict', True)
+    
+    # Calculate min/max points for color coding
+    points = [gp.total_points for gp in game_players]
+    min_points = min(points) if points else 0
+    max_points = max(points) if points else 0
+    point_range = max_points - min_points if max_points > min_points else 1
+    
     return render_template('game.html', 
                          game=game, 
                          current_round=current_round,
                          round_results=round_results,
                          game_players=ordered_players,
                          chart_data=chart_data,
-                         force_conflict=force_conflict_value)
+                         force_conflict=force_conflict_value,
+                         min_points=min_points,
+                         point_range=point_range)
 
 @app.route('/submit_guesses', methods=['POST'])
 def submit_guesses():
