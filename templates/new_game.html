@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Rikiki - New Game{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h4>🎮 Start New Game</h4>
+            </div>
+            <div class="card-body">
+                {% if players|length < 2 %}
+                    <div class="alert alert-warning">
+                        <h5>Not Enough Players</h5>
+                        <p>You need at least 2 players to start a game. Currently you have {{ players|length }} player(s).</p>
+                        <a href="{{ url_for('players') }}" class="btn btn-primary">Add Players</a>
+                    </div>
+                {% else %}
+                    <form method="POST" id="newGameForm">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="playerInput" class="form-label">Add Players (Type to search)</label>
+                                    <input type="text" class="form-control" id="playerInput" placeholder="Start typing player name..." autocomplete="off">
+                                    <div class="form-text">Type a player name and press Enter to add them to the game</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Selected Players (Order matters)</label>
+                                    <div id="selectedPlayers" class="border rounded p-3 min-height-100">
+                                        <p class="text-muted text-center">No players selected yet</p>
+                                    </div>
+                                    <input type="hidden" name="player_order" id="playerOrder">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Deck Configuration</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="deck_type" id="singleDeck" value="single" checked>
+                                        <label class="form-check-label" for="singleDeck">
+                                            <strong>Single Deck</strong> (52 cards, 1 trump card)
+                                            <br><small class="text-muted">Max cards per player = floor(51 / number of players)</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="deck_type" id="doubleDeck" value="double">
+                                        <label class="form-check-label" for="doubleDeck">
+                                            <strong>Double Deck</strong> (104 cards, 1 trump card)
+                                            <br><small class="text-muted">Max cards per player = floor(103 / number of players)</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-info">
+                                    <h6>Game Rules:</h6>
+                                    <ul class="mb-0">
+                                        <li>Cards per player: 1 → 2 → 3 → ... → max → ... → 3 → 2 → 1</li>
+                                        <li>Max cards per player depends on deck type and number of players</li>
+                                        <li>Total rounds = (max cards × 2) - 1</li>
+                                        <li>Scoring: Correct guess = 10 + 2×hits, Wrong guess = -2×|guess-hits|</li>
+                                    </ul>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-success btn-lg" id="startGameBtn" disabled>Start New Game</button>
+                                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancel</a>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6>Available Players ({{ players|length }})</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="list-group list-group-flush">
+                                            {% for player in players|sort(attribute='nickname') %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                    <span>{{ player.nickname }}</span>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary add-player-btn" 
+                                                            data-player-id="{{ player.id }}" 
+                                                            data-player-name="{{ player.nickname }}">
+                                                        Add
+                                                    </button>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.min-height-100 {
+    min-height: 100px;
+}
+.player-tag {
+    display: inline-block;
+    background: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-radius: 20px;
+    padding: 5px 15px;
+    margin: 2px;
+    position: relative;
+}
+.player-tag .remove-btn {
+    background: none;
+    border: none;
+    color: #dc3545;
+    font-weight: bold;
+    margin-left: 8px;
+    cursor: pointer;
+}
+</style>
+
+<script>
+let selectedPlayers = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    const playerInput = document.getElementById('playerInput');
+    const selectedPlayersDiv = document.getElementById('selectedPlayers');
+    const playerOrderInput = document.getElementById('playerOrder');
+    const startGameBtn = document.getElementById('startGameBtn');
+    
+    // Add player from input field
+    playerInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const playerName = this.value.trim();
+            if (playerName) {
+                addPlayerByName(playerName);
+                this.value = '';
+            }
+        }
+    });
+    
+    // Add player from button clicks
+    document.querySelectorAll('.add-player-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const playerId = this.dataset.playerId;
+            const playerName = this.dataset.playerName;
+            addPlayer(playerId, playerName);
+        });
+    });
+    
+    function addPlayerByName(playerName) {
+        // Find player by name
+        const playerBtn = document.querySelector(`[data-player-name="${playerName}"]`);
+        if (playerBtn) {
+            const playerId = playerBtn.dataset.playerId;
+            addPlayer(playerId, playerName);
+        } else {
+            alert('Player not found. Please check the spelling.');
+        }
+    }
+    
+    function addPlayer(playerId, playerName) {
+        // Check if player is already selected
+        if (selectedPlayers.some(p => p.id === playerId)) {
+            alert('Player is already selected!');
+            return;
+        }
+        
+        selectedPlayers.push({id: playerId, name: playerName});
+        updateSelectedPlayersDisplay();
+        updateStartButton();
+    }
+    
+    function removePlayer(playerId) {
+        selectedPlayers = selectedPlayers.filter(p => p.id !== playerId);
+        updateSelectedPlayersDisplay();
+        updateStartButton();
+    }
+    
+    function updateSelectedPlayersDisplay() {
+        if (selectedPlayers.length === 0) {
+            selectedPlayersDiv.innerHTML = '<p class="text-muted text-center">No players selected yet</p>';
+        } else {
+            selectedPlayersDiv.innerHTML = selectedPlayers.map((player, index) => 
+                `<span class="player-tag">
+                    ${index + 1}. ${player.name}
+                    <button type="button" class="remove-btn" onclick="removePlayer('${player.id}')">&times;</button>
+                </span>`
+            ).join('');
+        }
+        
+        // Update hidden input
+        playerOrderInput.value = selectedPlayers.map(p => p.id).join(',');
+    }
+    
+    function updateStartButton() {
+        startGameBtn.disabled = selectedPlayers.length < 2;
+    }
+    
+    // Make removePlayer function global
+    window.removePlayer = removePlayer;
+});
+</script>
+{% endblock %} 

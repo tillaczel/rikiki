@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Rikiki - Game {{ game.id }} Details{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4>📊 Game {{ game.id }} - Complete History</h4>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Started:</strong> {{ game.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Total Rounds:</strong> {{ game.max_rounds }}
+                    </div>
+                </div>
+
+                {% for round in rounds %}
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6>Round {{ round.round_number }} - {{ round.cards_per_player }} cards per player</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if round.is_completed %}
+                                {% set round_results = round.results %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Player</th>
+                                                <th>Guess</th>
+                                                <th>Hits</th>
+                                                <th>Points</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for result in round_results %}
+                                                <tr>
+                                                    <td><strong>{{ result.player.nickname }}</strong></td>
+                                                    <td>{{ result.guess }}</td>
+                                                    <td>{{ result.hits }}</td>
+                                                    <td>
+                                                        <span class="badge {% if result.guess == result.hits %}bg-success{% else %}bg-warning{% endif %}">
+                                                            {{ result.points }}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted">Round not completed</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Final Results</h5>
+            </div>
+            <div class="card-body">
+                {% set sorted_players = game_players|sort(attribute='total_points', reverse=true) %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Player</th>
+                                <th>Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for game_player in sorted_players %}
+                                <tr>
+                                    <td>
+                                        {% if loop.index == 1 %}
+                                            <span class="badge bg-warning">🥇</span>
+                                        {% elif loop.index == 2 %}
+                                            <span class="badge bg-secondary">🥈</span>
+                                        {% elif loop.index == 3 %}
+                                            <span class="badge bg-bronze">🥉</span>
+                                        {% else %}
+                                            <span class="text-muted">{{ loop.index }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>{{ game_player.player.nickname }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ game_player.total_points }}</span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% set winner = sorted_players|first %}
+                {% if winner %}
+                    <div class="alert alert-success mt-3">
+                        <h6>🏆 Winner</h6>
+                        <p class="mb-0"><strong>{{ winner.player.nickname }}</strong> with {{ winner.total_points }} points!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Game Statistics</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Total Players:</strong> {{ game_players|length }}</p>
+                <p><strong>Completed Rounds:</strong> {{ rounds|selectattr('is_completed')|list|length }}</p>
+                <p><strong>Average Points:</strong> 
+                    {% set total_points = game_players|sum(attribute='total_points') %}
+                    {% set avg_points = (total_points / game_players|length)|round(1) %}
+                    {{ avg_points }}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{{ url_for('history') }}" class="btn btn-outline-secondary">← Back to History</a>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">Home</a>
+</div>
+{% endblock %} 

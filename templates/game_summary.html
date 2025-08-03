@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Rikiki - Game Summary{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4>🏆 Game {{ game.id }} Summary</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Game Information</h5>
+                        <p><strong>Created:</strong> {{ game.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        {% if game.started_at %}
+                            <p><strong>Started:</strong> {{ game.started_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        {% endif %}
+                        {% if game.ended_at %}
+                            <p><strong>Ended:</strong> {{ game.ended_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                            {% if game.started_at %}
+                                <p><strong>Duration:</strong> {{ (game.ended_at - game.started_at).total_seconds() // 60 }} minutes</p>
+                            {% endif %}
+                        {% else %}
+                            <p><strong>Ended:</strong> <span class="text-muted">Not recorded</span></p>
+                        {% endif %}
+                        <p><strong>Deck Type:</strong> 
+                            {% if game.deck_type == 'double' %}
+                                <span class="badge bg-info">Double Deck (104 cards)</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Single Deck (52 cards)</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Total Rounds:</strong> {{ total_rounds }}</p>
+                        <p><strong>Players:</strong> {{ total_players }}</p>
+                        {% if game.ended_early %}
+                            <p><strong>Status:</strong> <span class="badge bg-warning">Ended Early</span></p>
+                        {% else %}
+                            <p><strong>Status:</strong> <span class="badge bg-success">Completed</span></p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Game Statistics</h5>
+                        <p><strong>Winner:</strong> {{ winner.player.nickname if winner else 'N/A' }}</p>
+                        <p><strong>Highest Score:</strong> {{ max_points }}</p>
+                        <p><strong>Lowest Score:</strong> {{ min_points }}</p>
+                        <p><strong>Point Spread:</strong> {{ point_spread }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4>📊 Points Progress</h4>
+            </div>
+            <div class="card-body">
+                <div style="position: relative; height: 400px; width: 100%;">
+                    <canvas id="pointsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4>🏅 Final Podium</h4>
+            </div>
+            <div class="card-body">
+                {% for game_player in game_players %}
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-md-1">
+                            {% if loop.index == 1 %}
+                                <span class="badge bg-warning fs-5">🥇</span>
+                            {% elif loop.index == 2 %}
+                                <span class="badge bg-secondary fs-5">🥈</span>
+                            {% elif loop.index == 3 %}
+                                <span class="badge bg-warning fs-5">🥉</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">{{ loop.index }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="mb-0">{{ game_player.player.nickname }}</h5>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge bg-primary fs-6">{{ game_player.total_points }} points</span>
+                        </div>
+                        <div class="col-md-2">
+                            {% set stats = player_stats[loop.index0] %}
+                            <small class="text-muted">
+                                {{ "%.1f"|format(stats.accuracy) }}% accuracy<br>
+                                {{ stats.correct_guesses }}/{{ stats.total_guesses }} correct
+                            </small>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>📈 Player Statistics</h5>
+            </div>
+            <div class="card-body">
+                {% for stats in player_stats %}
+                    <div class="mb-3">
+                        <h6>{{ stats.player.nickname }}</h6>
+                        <ul class="list-unstyled small">
+                            <li><strong>Total Points:</strong> {{ stats.total_points }}</li>
+                            <li><strong>Avg Points/Round:</strong> {{ "%.1f"|format(stats.avg_points_per_round) }}</li>
+                            <li><strong>Accuracy:</strong> {{ "%.1f"|format(stats.accuracy) }}%</li>
+                            <li><strong>Correct Guesses:</strong> {{ stats.correct_guesses }}/{{ stats.total_guesses }}</li>
+                        </ul>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>🎯 Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('edit_game', game_id=game.id) }}" class="btn btn-warning">✏️ Edit Game</a>
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">Back to Home</a>
+                    <a href="{{ url_for('new_game') }}" class="btn btn-success">Start New Game</a>
+                    <a href="{{ url_for('game_history', game_id=game.id) }}" class="btn btn-outline-info">View Detailed History</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Wait for Chart.js to load
+function waitForChart() {
+    if (typeof Chart !== 'undefined') {
+        createChart();
+    } else {
+        console.log('Chart.js not loaded yet, waiting...');
+        setTimeout(waitForChart, 100);
+    }
+}
+
+function createChart() {
+    console.log('Chart.js available:', typeof Chart !== 'undefined');
+    
+    // Chart data from backend
+    const chartData = JSON.parse('{{ chart_data|tojson|safe }}');
+    
+    // Create chart
+    const ctx = document.getElementById('pointsChart');
+    console.log('Canvas element:', ctx); // Debug log
+    console.log('Chart data:', chartData); // Debug log
+    
+    if (ctx) {
+        try {
+            const myChart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Points'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Rounds'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Final Points Progress'
+                        }
+                    }
+                }
+            });
+            console.log('Chart created successfully:', myChart);
+        } catch (error) {
+            console.error('Error creating chart:', error);
+            // Fallback: show a message if chart fails
+            ctx.parentElement.innerHTML = '<div class="alert alert-info">Chart loading...</div>';
+        }
+    } else {
+        console.error('Canvas element not found!');
+    }
+}
+
+// Start the chart process
+waitForChart();
+</script>
+{% endblock %} 

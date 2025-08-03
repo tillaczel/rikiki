@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Rikiki - Edit Game {{ game.id }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4>✏️ Edit Game {{ game.id }}</h4>
+                <div>
+                    <a href="{{ url_for('game_summary', game_id=game.id) }}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <strong>Instructions:</strong> Edit guesses and hits for each round. Points will be automatically recalculated.
+                    <br><small>Correct guess: +10 + 2×hits | Wrong guess: -2×|guess-hits|</small>
+                    <br><strong class="text-success">✓ Points and graph will be updated after saving!</strong>
+                </div>
+                
+                <form method="POST">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 120px;">Round</th>
+                                    <th style="width: 80px;">Cards</th>
+                                    {% for game_player in game_players %}
+                                        <th class="text-center" style="width: 200px;">
+                                            {{ game_player.player.nickname }}
+                                        </th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for round_info in rounds %}
+                                    <tr>
+                                        <td class="align-middle">
+                                            <strong>Round {{ round_info.round.round_number }}</strong>
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <span class="badge bg-primary">{{ round_info.round.cards_per_player }}</span>
+                                        </td>
+                                        {% for player_info in round_info.players %}
+                                            <td class="text-center">
+                                                <div class="row g-2">
+                                                    <div class="col-6">
+                                                        <label class="form-label small mb-1">Guess</label>
+                                                        <input type="number" 
+                                                               class="form-control form-control-sm" 
+                                                               name="guess_{{ round_info.round.id }}_{{ player_info.game_player.player.id }}"
+                                                               value="{{ player_info.result.guess if player_info.result else 0 }}"
+                                                               min="0" 
+                                                               max="{{ round_info.round.cards_per_player }}"
+                                                               required>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <label class="form-label small mb-1">Hits</label>
+                                                        <input type="number" 
+                                                               class="form-control form-control-sm" 
+                                                               name="hits_{{ round_info.round.id }}_{{ player_info.game_player.player.id }}"
+                                                               value="{{ player_info.result.hits if player_info.result else 0 }}"
+                                                               min="0" 
+                                                               max="{{ round_info.round.cards_per_player }}"
+                                                               required>
+                                                    </div>
+                                                </div>
+                                                {% if player_info.result %}
+                                                    <div class="mt-1">
+                                                        <small class="text-muted">
+                                                            Points: {{ player_info.result.points }}
+                                                        </small>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="mt-1">
+                                                        <small class="text-muted">
+                                                            Points: 0
+                                                        </small>
+                                                    </div>
+                                                {% endif %}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Current Totals</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Player</th>
+                                                <th>Total Points</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for game_player in game_players %}
+                                                <tr>
+                                                    <td>{{ game_player.player.nickname }}</td>
+                                                    <td>
+                                                        <span class="badge bg-{{ 'success' if game_player.total_points > 0 else 'danger' if game_player.total_points < 0 else 'secondary' }}">
+                                                            {{ game_player.total_points }}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-warning">
+                                    <h6>⚠️ Important Notes:</h6>
+                                    <ul class="mb-0 small">
+                                        <li>All changes will be saved immediately</li>
+                                        <li>Points are automatically recalculated</li>
+                                        <li>Total hits should equal cards per player</li>
+                                        <li>You can return to the summary after saving</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 d-flex justify-content-between">
+                        <a href="{{ url_for('game_summary', game_id=game.id) }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-warning">💾 Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Real-time validation for hits sum
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('tbody tr');
+    
+    rows.forEach(row => {
+        const cardsPerPlayer = parseInt(row.querySelector('.badge').textContent);
+        const hitInputs = row.querySelectorAll('input[name*="hits_"]');
+        
+        hitInputs.forEach(input => {
+            input.addEventListener('input', function() {
+                updateHitsSum(row, cardsPerPlayer);
+            });
+        });
+        
+        // Initial calculation
+        updateHitsSum(row, cardsPerPlayer);
+    });
+});
+
+function updateHitsSum(row, cardsPerPlayer) {
+    const hitInputs = row.querySelectorAll('input[name*="hits_"]');
+    let sum = 0;
+    
+    hitInputs.forEach(input => {
+        sum += parseInt(input.value) || 0;
+    });
+    
+    // Visual feedback
+    hitInputs.forEach(input => {
+        if (sum === cardsPerPlayer) {
+            input.classList.remove('is-invalid');
+            input.classList.add('is-valid');
+        } else if (sum > cardsPerPlayer) {
+            input.classList.remove('is-valid');
+            input.classList.add('is-invalid');
+        } else {
+            input.classList.remove('is-valid', 'is-invalid');
+        }
+    });
+    
+    // Add sum indicator
+    let sumIndicator = row.querySelector('.hits-sum-indicator');
+    if (!sumIndicator) {
+        sumIndicator = document.createElement('div');
+        sumIndicator.className = 'hits-sum-indicator small mt-1';
+        row.querySelector('td:nth-child(2)').appendChild(sumIndicator);
+    }
+    
+    if (sum > 0) {
+        sumIndicator.textContent = `Total hits: ${sum}/${cardsPerPlayer}`;
+        if (sum === cardsPerPlayer) {
+            sumIndicator.className = 'hits-sum-indicator small mt-1 text-success';
+            sumIndicator.innerHTML = `<strong>✓ Total hits: ${sum}/${cardsPerPlayer}</strong>`;
+        } else if (sum > cardsPerPlayer) {
+            sumIndicator.className = 'hits-sum-indicator small mt-1 text-danger';
+            sumIndicator.innerHTML = `<strong>✗ Total hits: ${sum}/${cardsPerPlayer} (Too many!)</strong>`;
+        } else {
+            sumIndicator.className = 'hits-sum-indicator small mt-1 text-warning';
+            sumIndicator.innerHTML = `<strong>⚠ Total hits: ${sum}/${cardsPerPlayer} (Too few)</strong>`;
+        }
+    } else {
+        sumIndicator.textContent = '';
+    }
+}
+</script>
+{% endblock %} 

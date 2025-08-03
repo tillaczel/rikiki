@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Rikiki - Players{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>Add New Player</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="nickname" class="form-label">Nickname *</label>
+                        <input type="text" class="form-control" id="nickname" name="nickname" required>
+                        <div class="form-text">Unique nickname for the player</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Player</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>Registered Players ({{ players|length }})</h4>
+            </div>
+            <div class="card-body">
+                {% if players %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Nickname</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for player in players %}
+                                    <tr>
+                                        <td><strong>{{ player.nickname }}</strong></td>
+                                        <td>{{ player.created_at.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('edit_player', player_id=player.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                            <form method="POST" action="{{ url_for('delete_player', player_id=player.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete {{ player.nickname }}?')">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No players registered yet. Add your first player above!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

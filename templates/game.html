@@ -1,0 +1,478 @@
+{% extends "base.html" %}
+
+{% block title %}Rikiki - Game {{ game.id }}{% endblock %}
+
+{% block content %}
+<!-- Points Progress Chart - Big at the top -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4>📊 Points Progress</h4>
+            </div>
+            <div class="card-body">
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="pointsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h4>🎮 Game {{ game.id }} - Round {{ current_round.round_number }}/{{ game.max_rounds }}</h4>
+                    <small class="text-muted">
+                        {% if game.deck_type == 'double' %}
+                            Double Deck (104 cards)
+                        {% else %}
+                            Single Deck (52 cards)
+                        {% endif %}
+                    </small>
+                </div>
+                <form method="POST" action="{{ url_for('force_end_game', game_id=game.id) }}" style="display: inline;" 
+                      onsubmit="return confirm('Are you sure you want to end this game early? This action cannot be undone.')">
+                    <button type="submit" class="btn btn-danger btn-sm">Force End Game</button>
+                </form>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Cards per player:</strong> {{ current_round.cards_per_player }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Status:</strong> 
+                        {% if current_round.is_completed %}
+                            <span class="badge bg-success">Completed</span>
+                        {% else %}
+                            <span class="badge bg-warning">In Progress</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Round Info above game content -->
+                <div class="alert alert-info mb-3">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Cards per player:</strong> {{ current_round.cards_per_player }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Total cards:</strong> {{ current_round.cards_per_player * game_players|length }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Total guesses cannot equal:</strong> {{ current_round.cards_per_player }}
+                        </div>
+                    </div>
+                </div>
+
+                {% if not current_round.is_completed %}
+                    {% if not round_results %}
+                        <!-- Submit Guesses -->
+                        <form method="POST" action="{{ url_for('submit_guesses') }}">
+                            <input type="hidden" name="game_id" value="{{ game.id }}">
+                            <input type="hidden" name="round_id" value="{{ current_round.id }}">
+                            
+                            <h5>Submit Guesses</h5>
+                            <p class="text-muted">Each player guesses how many tricks they will win this round. Guesses start from the player after the dealer and end with the dealer.</p>
+                            
+                            <div class="row">
+                                <div class="col-12">
+                                    {% for game_player in game_players %}
+                                        <div class="card mb-2">
+                                            <div class="card-body py-2">
+                                                <div class="row align-items-center">
+                                                    <div class="col-md-4">
+                                                        <label for="guess_{{ game_player.player.id }}" class="form-label mb-0">
+                                                            {{ game_player.player.nickname }}
+                                                            {% if loop.index == game_players|length %}
+                                                                <span class="badge bg-warning">Dealer</span>
+                                                            {% endif %}
+                                                        </label>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <input type="number" 
+                                                               class="form-control guess-input" 
+                                                               id="guess_{{ game_player.player.id }}" 
+                                                               name="guess_{{ game_player.player.id }}" 
+                                                               min="0" 
+                                                               max="{{ current_round.cards_per_player }}" 
+                                                               placeholder="0 to {{ current_round.cards_per_player }}"
+                                                               required>
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <small class="text-muted">0-{{ current_round.cards_per_player }}</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                    
+                                    <div class="alert alert-warning mt-3" id="sumAlert" style="display: none;">
+                                        <strong>Current Sum:</strong> <span id="currentSum">0</span>
+                                        <br><small>Sum must not equal {{ current_round.cards_per_player }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-primary" id="submitGuessesBtn" disabled>
+                                    Submit Guesses
+                                </button>
+                                <small class="text-muted d-block mt-1" id="guessesHint">Enter guesses to submit</small>
+                            </div>
+                        </form>
+                    {% else %}
+                        <!-- Submit Results -->
+                        <form method="POST" action="{{ url_for('submit_results') }}">
+                            <input type="hidden" name="game_id" value="{{ game.id }}">
+                            <input type="hidden" name="round_id" value="{{ current_round.id }}">
+                            
+                            <h5>Submit Results</h5>
+                            <p class="text-muted">Enter how many tricks each player actually won.</p>
+                            
+                            <div class="row">
+                                <div class="col-12">
+                                    {% for result in round_results %}
+                                        <div class="card mb-2">
+                                            <div class="card-body py-2">
+                                                <div class="row align-items-center">
+                                                    <div class="col-md-3">
+                                                        <label class="form-label mb-0">
+                                                            {{ result.player.nickname }}
+                                                            {% if loop.index == round_results|length %}
+                                                                <span class="badge bg-warning">Dealer</span>
+                                                            {% endif %}
+                                                        </label>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label mb-0">Guess:</label>
+                                                        <span class="badge bg-info">{{ result.guess }}</span>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label for="hits_{{ result.player.id }}" class="form-label mb-0">Hits:</label>
+                                                        <input type="number" 
+                                                               class="form-control form-control-sm hits-input" 
+                                                               id="hits_{{ result.player.id }}"
+                                                               name="hits_{{ result.player.id }}" 
+                                                               min="0" 
+                                                               max="{{ current_round.cards_per_player }}" 
+                                                               placeholder="0 to {{ current_round.cards_per_player }}"
+                                                               required>
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <small class="text-muted">0-{{ current_round.cards_per_player }}</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                    
+                                    <div class="alert alert-info mt-3" id="hitsSumAlert" style="display: none;">
+                                        <strong>Total Hits:</strong> <span id="totalHits">0</span> / {{ current_round.cards_per_player }}
+                                        <br><small>Total hits must equal {{ current_round.cards_per_player }} (cards per player)</small>
+                                    </div>
+                                    
+                                    <!-- Submit button with validation -->
+                                    <div class="mt-3">
+                                        <button type="submit" class="btn btn-primary" id="submitResultsBtn" disabled>
+                                            Submit Results
+                                        </button>
+                                        <small class="text-muted d-block mt-1" id="submitHint">Complete all hits to submit</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    {% endif %}
+                {% else %}
+                    <!-- Round Completed -->
+                    <div class="alert alert-success">
+                        <h5>Round {{ current_round.round_number }} Completed!</h5>
+                        <p>Results have been recorded. {% if game.current_round < game.max_rounds %}Ready for next round.{% else %}Game completed!{% endif %}</p>
+                    </div>
+                    
+                                        <div class="row">
+                        <div class="col-12">
+                            {% for result in round_results %}
+                                <div class="card mb-2">
+                                    <div class="card-body py-2">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-3">
+                                                <label class="form-label mb-0">
+                                                    {{ result.player.nickname }}
+                                                    {% if loop.index == round_results|length %}
+                                                        <span class="badge bg-warning">Dealer</span>
+                                                    {% endif %}
+                                                </label>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <small class="text-muted">Guess:</small><br>
+                                                <span class="badge bg-info">{{ result.guess }}</span>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <small class="text-muted">Hits:</small><br>
+                                                <span class="badge bg-secondary">{{ result.hits }}</span>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <small class="text-muted">Points:</small><br>
+                                                <span class="badge {% if result.guess == result.hits %}bg-success{% else %}bg-danger{% endif %}">
+                                                    {{ result.points }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    {% if game.current_round < game.max_rounds %}
+                        <a href="{{ url_for('game', game_id=game.id) }}" class="btn btn-primary">Continue to Next Round</a>
+                    {% else %}
+                        <a href="{{ url_for('index') }}" class="btn btn-success">Game Complete - Back to Home</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Game Players</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for game_player in game_players %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ game_player.player.nickname }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ game_player.total_points }}</span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Game Info</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Game ID:</strong> {{ game.id }}</p>
+                <p><strong>Created:</strong> {{ game.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                {% if game.started_at %}
+                    <p><strong>Started:</strong> {{ game.started_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                {% endif %}
+                <p><strong>Current Round:</strong> {{ game.current_round }} / {{ game.max_rounds }}</p>
+                <p><strong>Status:</strong> 
+                    {% if game.is_active %}
+                        <span class="badge bg-success">Active</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Completed</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Wait for Chart.js to load
+function waitForChart() {
+    if (typeof Chart !== 'undefined') {
+        createChart();
+    } else {
+        console.log('Chart.js not loaded yet, waiting...');
+        setTimeout(waitForChart, 100);
+    }
+}
+
+function createChart() {
+    console.log('Chart.js available:', typeof Chart !== 'undefined');
+    
+    // Chart data from backend
+    const chartData = JSON.parse('{{ chart_data|tojson|safe }}');
+    
+    // Create chart
+    const ctx = document.getElementById('pointsChart');
+    console.log('Canvas element:', ctx); // Debug log
+    console.log('Chart data:', chartData); // Debug log
+    
+    if (ctx) {
+        try {
+            const myChart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Points'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Rounds'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Points Progress'
+                        }
+                    }
+                }
+            });
+            console.log('Chart created successfully:', myChart);
+        } catch (error) {
+            console.error('Error creating chart:', error);
+            // Fallback: show a message if chart fails
+            ctx.parentElement.innerHTML = '<div class="alert alert-info">Chart loading...</div>';
+        }
+    } else {
+        console.error('Canvas element not found!');
+    }
+}
+
+// Start the chart process
+waitForChart();
+
+// Real-time sum calculation for guesses
+document.addEventListener('DOMContentLoaded', function() {
+    const guessInputs = document.querySelectorAll('.guess-input');
+    const sumAlert = document.getElementById('sumAlert');
+    const currentSumSpan = document.getElementById('currentSum');
+    const maxCards = parseInt('{{ current_round.cards_per_player }}');
+    
+    function updateGuessSum() {
+        let sum = 0;
+        guessInputs.forEach(input => {
+            const value = parseInt(input.value) || 0;
+            sum += value;
+        });
+        
+        currentSumSpan.textContent = sum;
+        
+        // Form validation for guesses
+        const submitGuessesBtn = document.getElementById('submitGuessesBtn');
+        const guessesHint = document.getElementById('guessesHint');
+        
+        if (sum >= 0) {
+            sumAlert.style.display = 'block';
+            if (sum === maxCards) {
+                sumAlert.className = 'alert alert-danger mt-3';
+                sumAlert.innerHTML = `<strong>Current Sum:</strong> <span id="currentSum">${sum}</span><br><small>⚠️ Sum equals ${maxCards} - this is not allowed!</small>`;
+                submitGuessesBtn.disabled = true;
+                guessesHint.textContent = `Sum equals ${maxCards} - not allowed!`;
+                guessesHint.className = 'text-danger d-block mt-1';
+            } else {
+                sumAlert.className = 'alert alert-info mt-3';
+                sumAlert.innerHTML = `<strong>Current Sum:</strong> <span id="currentSum">${sum}</span><br><small>Sum must not equal ${maxCards}</small>`;
+                submitGuessesBtn.disabled = false;
+                guessesHint.textContent = 'Ready to submit!';
+                guessesHint.className = 'text-success d-block mt-1';
+            }
+        } else {
+            sumAlert.style.display = 'none';
+            submitGuessesBtn.disabled = true;
+            guessesHint.textContent = 'Enter guesses to submit';
+            guessesHint.className = 'text-muted d-block mt-1';
+        }
+    }
+    
+    // Keep guess sum visible when entering hits
+    if (guessInputs.length > 0) {
+        updateGuessSum(); // Show initial state
+    }
+    
+    guessInputs.forEach(input => {
+        input.addEventListener('input', updateGuessSum);
+    });
+    
+    // Real-time sum calculation for hits with form validation
+    const hitsInputs = document.querySelectorAll('.hits-input');
+    const hitsSumAlert = document.getElementById('hitsSumAlert');
+    const totalHitsSpan = document.getElementById('totalHits');
+    const targetHits = parseInt('{{ current_round.cards_per_player }}');
+    const submitResultsBtn = document.getElementById('submitResultsBtn');
+    const submitHint = document.getElementById('submitHint');
+    
+    function updateHitsSum() {
+        let sum = 0;
+        hitsInputs.forEach(input => {
+            const value = parseInt(input.value) || 0;
+            sum += value;
+        });
+        
+        totalHitsSpan.textContent = sum;
+        
+        // Form validation
+        if (sum === targetHits) {
+            submitResultsBtn.disabled = false;
+            submitHint.textContent = 'Ready to submit!';
+            submitHint.className = 'text-success d-block mt-1';
+        } else {
+            submitResultsBtn.disabled = true;
+            if (sum > targetHits) {
+                submitHint.textContent = `Too many hits! Must equal ${targetHits}`;
+                submitHint.className = 'text-danger d-block mt-1';
+            } else {
+                submitHint.textContent = `Need ${targetHits - sum} more hits to submit`;
+                submitHint.className = 'text-warning d-block mt-1';
+            }
+        }
+        
+        if (sum > 0) {
+            hitsSumAlert.style.display = 'block';
+            if (sum === targetHits) {
+                hitsSumAlert.className = 'alert alert-success mt-3';
+                hitsSumAlert.innerHTML = `<strong>Total Hits:</strong> <span id="totalHits">${sum}</span> / ${targetHits}<br><small>✅ Total hits equals ${targetHits} - perfect!</small>`;
+            } else if (sum > targetHits) {
+                hitsSumAlert.className = 'alert alert-danger mt-3';
+                hitsSumAlert.innerHTML = `<strong>Total Hits:</strong> <span id="totalHits">${sum}</span> / ${targetHits}<br><small>⚠️ Too many hits! Must equal ${targetHits}</small>`;
+            } else {
+                hitsSumAlert.className = 'alert alert-warning mt-3';
+                hitsSumAlert.innerHTML = `<strong>Total Hits:</strong> <span id="totalHits">${sum}</span> / ${targetHits}<br><small>Total hits must equal ${targetHits}</small>`;
+            }
+        } else {
+            hitsSumAlert.style.display = 'none';
+        }
+    }
+    
+    hitsInputs.forEach(input => {
+        input.addEventListener('input', updateHitsSum);
+    });
+    
+    // Initialize hits sum if we're on the hits page
+    if (hitsInputs.length > 0) {
+        updateHitsSum();
+    }
+});
+</script>
+{% endblock %} 

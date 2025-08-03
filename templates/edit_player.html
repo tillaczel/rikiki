@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Rikiki - Edit Player{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>Edit Player</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="nickname" class="form-label">Nickname *</label>
+                        <input type="text" class="form-control" id="nickname" name="nickname" value="{{ player.nickname }}" required>
+                        <div class="form-text">Unique nickname for the player</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Update Player</button>
+                        <a href="{{ url_for('players') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Player Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Current Nickname:</strong> {{ player.nickname }}</p>
+                <p><strong>Joined:</strong> {{ player.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                <p><strong>Player ID:</strong> {{ player.id }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

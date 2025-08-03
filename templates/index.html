@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Rikiki - Home{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4>🎴 Welcome to Rikiki!</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead">Manage your Rikiki card game with ease.</p>
+                
+                {% if active_games %}
+                    <h5>Active Games ({{ active_games|length }})</h5>
+                    {% for game in active_games %}
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <h6 class="card-title">Game #{{ game.id }}</h6>
+                                        <p class="card-text">
+                                            <strong>Current Round:</strong> {{ game.current_round }} / {{ game.max_rounds }}<br>
+                                            <strong>Started:</strong> {{ game.created_at.strftime('%Y-%m-%d %H:%M') }}<br>
+                                            <strong>Players:</strong> {{ game.game_players|length }}
+                                        </p>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <a href="{{ url_for('game', game_id=game.id) }}" class="btn btn-primary btn-sm">Continue</a>
+                                        <form method="POST" action="{{ url_for('force_end_game', game_id=game.id) }}" style="display: inline;" 
+                                              onsubmit="return confirm('Are you sure you want to end this game early? This action cannot be undone.')">
+                                            <button type="submit" class="btn btn-danger btn-sm">End Game</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-warning">
+                        <h5>No Active Games</h5>
+                        <p>Start a new game to begin playing!</p>
+                        <a href="{{ url_for('new_game') }}" class="btn btn-success">Start New Game</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('players') }}" class="btn btn-outline-primary">Manage Players</a>
+                    <a href="{{ url_for('new_game') }}" class="btn btn-outline-success">Start New Game</a>
+                    <a href="{{ url_for('history') }}" class="btn btn-outline-info">View History</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Player Statistics</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Total Players:</strong> {{ players|length }}</p>
+                {% if players %}
+                    <p><strong>Recent Players:</strong></p>
+                    <ul class="list-unstyled">
+                        {% for player in players[-3:] %}
+                            <li>• {{ player.nickname }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">No players registered yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
