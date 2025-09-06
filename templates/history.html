@@ -46,7 +46,7 @@
                                 <td>
                                     {% set game_players = game.game_players %}
                                     {% for game_player in game_players %}
-                                        {{ game_player.player.nickname }}{% if not loop.last %}, {% endif %}
+                                        <a href="{{ url_for('player_stats', player_id=game_player.player.id) }}" class="text-decoration-none">{{ game_player.player.nickname }}</a>{% if not loop.last %}, {% endif %}
                                     {% endfor %}
                                 </td>
                                 <td>
@@ -60,7 +60,9 @@
                                 <td>
                                     {% set winner = game.game_players|sort(attribute='total_points', reverse=true)|first %}
                                     {% if winner %}
-                                        <span class="badge bg-success">{{ winner.player.nickname }} ({{ winner.total_points }} pts)</span>
+                                        <span class="badge bg-success">
+                                            <a href="{{ url_for('player_stats', player_id=winner.player.id) }}" class="text-decoration-none text-white">{{ winner.player.nickname }}</a> ({{ winner.total_points }} pts)
+                                        </span>
                                     {% else %}
                                         <span class="text-muted">No data</span>
                                     {% endif %}

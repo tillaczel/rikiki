@@ -50,7 +50,13 @@
                     </div>
                     <div class="col-md-6">
                         <h5>Game Statistics</h5>
-                        <p><strong>Winner:</strong> {{ winner.player.nickname if winner else 'N/A' }}</p>
+                        <p><strong>Winner:</strong> 
+                            {% if winner %}
+                                <a href="{{ url_for('player_stats', player_id=winner.player.id) }}" class="text-decoration-none">{{ winner.player.nickname }}</a>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </p>
                         <p><strong>Highest Score:</strong> {{ max_points }}</p>
                         <p><strong>Lowest Score:</strong> {{ min_points }}</p>
                         <p><strong>Point Spread:</strong> {{ point_spread }}</p>
@@ -97,7 +103,11 @@
                             {% endif %}
                         </div>
                         <div class="col-md-6">
-                            <h5 class="mb-0">{{ game_player.player.nickname }}</h5>
+                            <h5 class="mb-0">
+                                <a href="{{ url_for('player_stats', player_id=game_player.player.id) }}" class="text-decoration-none">
+                                    {{ game_player.player.nickname }}
+                                </a>
+                            </h5>
                         </div>
                         <div class="col-md-3">
                             {% set max_points = game_players|map(attribute='total_points')|max %}
@@ -151,7 +161,11 @@
             <div class="card-body">
                 {% for stats in player_stats %}
                     <div class="mb-3">
-                        <h6>{{ stats.player.nickname }}</h6>
+                        <h6>
+                            <a href="{{ url_for('player_stats', player_id=stats.player.id) }}" class="text-decoration-none">
+                                {{ stats.player.nickname }}
+                            </a>
+                        </h6>
                         <ul class="list-unstyled small">
                             <li><strong>Total Points:</strong> {{ stats.total_points }}</li>
                             <li><strong>Avg Points/Round:</strong> {{ "%.1f"|format(stats.avg_points_per_round) }}</li>
@@ -222,7 +236,11 @@
                                         <tbody>
                                             {% for result in round_results %}
                                                 <tr>
-                                                    <td><strong>{{ result.player.nickname }}</strong></td>
+                                                    <td>
+                                                        <a href="{{ url_for('player_stats', player_id=result.player.id) }}" class="text-decoration-none">
+                                                            <strong>{{ result.player.nickname }}</strong>
+                                                        </a>
+                                                    </td>
                                                     <td>{{ result.guess }}</td>
                                                     <td>{{ result.hits }}</td>
                                                     <td>

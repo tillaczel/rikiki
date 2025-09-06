@@ -28,7 +28,7 @@
                                     <th style="width: 80px;">Cards</th>
                                     {% for game_player in game_players %}
                                         <th class="text-center" style="width: 200px;">
-                                            {{ game_player.player.nickname }}
+                                            <a href="{{ url_for('player_stats', player_id=game_player.player.id) }}" class="text-decoration-none">{{ game_player.player.nickname }}</a>
                                         </th>
                                     {% endfor %}
                                 </tr>
@@ -102,7 +102,7 @@
                                         <tbody>
                                             {% for game_player in game_players %}
                                                 <tr>
-                                                    <td>{{ game_player.player.nickname }}</td>
+                                                    <td><a href="{{ url_for('player_stats', player_id=game_player.player.id) }}" class="text-decoration-none">{{ game_player.player.nickname }}</a></td>
                                                     <td>
                                                         <span class="badge bg-{{ 'success' if game_player.total_points > 0 else 'danger' if game_player.total_points < 0 else 'secondary' }}">
                                                             {{ game_player.total_points }}

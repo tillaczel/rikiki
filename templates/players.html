@@ -41,7 +41,11 @@
                             <tbody>
                                 {% for player in players %}
                                     <tr>
-                                        <td><strong>{{ player.nickname }}</strong></td>
+                                        <td>
+                                            <a href="{{ url_for('player_stats', player_id=player.id) }}" class="text-decoration-none">
+                                                <strong>{{ player.nickname }}</strong>
+                                            </a>
+                                        </td>
                                         <td>{{ player.created_at.strftime('%Y-%m-%d') }}</td>
                                         <td>
                                             <a href="{{ url_for('edit_player', player_id=player.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>

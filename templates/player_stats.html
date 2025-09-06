@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}Rikiki - {{ player.nickname }} Statistics{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">🎯 {{ player.nickname }}'s Statistics</h2>
+                <a href="{{ url_for('players') }}" class="btn btn-outline-primary">← Back to Players</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Performance Charts -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Performance Over Time</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="performanceChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Position Distribution Chart -->
+        {% if positions %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Position Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="positionChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Statistics and Opponents -->
+    <div class="col-lg-4">
+        <!-- Statistics -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Stats</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td><strong>Total Games:</strong></td>
+                        <td>{{ total_games }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Wins:</strong></td>
+                        <td>{{ wins }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Win Rate:</strong></td>
+                        <td>{{ "%.1f"|format(win_rate) }}%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Average Position:</strong></td>
+                        <td>{{ "%.1f"|format(average_position) }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Correct Guess Rate:</strong></td>
+                        <td>{{ "%.1f"|format(correct_guess_ratio) }}%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Average Points per Round:</strong></td>
+                        <td>{{ "%.1f"|format(average_points_per_round) }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Most Common Opponents -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Opponents ({{ opponent_stats|length }} total)</h5>
+            </div>
+            <div class="card-body">
+                {% if opponent_stats %}
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Games</th>
+                                    <th>Win Rate</th>
+                                    <th>Avg Points</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for opponent in opponent_stats[:10] %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('player_stats', player_id=opponent.player.id) }}" class="text-decoration-none">
+                                            {{ opponent.player.nickname }}
+                                        </a>
+                                    </td>
+                                    <td>{{ opponent.games_played }}</td>
+                                    <td>
+                                        <span class="badge {% if opponent.win_rate_against >= 50 %}bg-success{% elif opponent.win_rate_against >= 30 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ "%.1f"|format(opponent.win_rate_against) }}%
+                                        </span>
+                                    </td>
+                                    <td>{{ "%.1f"|format(opponent.avg_points_against) }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% if opponent_stats|length > 10 %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">
+                                        <small>... and {{ opponent_stats|length - 10 }} more opponents</small>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No opponent data available</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Games -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Recent Games</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_games %}
+                    <div class="list-group list-group-flush">
+                        {% for game in recent_games %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <a href="{{ url_for('game_summary', game_id=game.id) }}" class="text-decoration-none">
+                                        Game #{{ game.id }}
+                                    </a>
+                                    <br>
+                                    <small class="text-muted">
+                                        {{ (game.ended_at or game.created_at).strftime('%Y-%m-%d') }}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    {% set game_position = positions[loop.index0] if loop.index0 < positions|length else 'N/A' %}
+                                    <span class="badge {% if game_position == 1 %}bg-success{% elif game_position == 2 %}bg-warning{% elif game_position == 3 %}bg-info{% else %}bg-secondary{% endif %}">
+                                        {{ game_position }}{% if game_position == 1 %}st{% elif game_position == 2 %}nd{% elif game_position == 3 %}rd{% else %}th{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">No completed games yet</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Active Games -->
+        {% if active_games %}
+        <div class="card">
+            <div class="card-header">
+                <h5>Active Games</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for game in active_games %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <a href="{{ url_for('game', game_id=game.id) }}" class="text-decoration-none">
+                                    Game #{{ game.id }}
+                                </a>
+                                <br>
+                                <small class="text-muted">
+                                    Round {{ game.current_round }}/{{ game.max_rounds }}
+                                </small>
+                            </div>
+                            <span class="badge bg-primary">Active</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Performance over time chart
+const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+const performanceChart = new Chart(performanceCtx, {
+    type: 'line',
+    data: {
+        labels: {{ chart_data.labels | tojson }},
+        datasets: {{ chart_data.datasets | tojson }}
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                reverse: true,
+                ticks: {
+                    stepSize: 1
+                },
+                title: {
+                    display: true,
+                    text: 'Position (1st = best)'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Games (chronological order)'
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: true
+            }
+        }
+    }
+});
+
+{% if positions %}
+// Position distribution chart
+const positionCtx = document.getElementById('positionChart').getContext('2d');
+const positionCounts = {};
+{% for pos in positions %}
+positionCounts[{{ pos }}] = (positionCounts[{{ pos }}] || 0) + 1;
+{% endfor %}
+
+const positionChart = new Chart(positionCtx, {
+    type: 'bar',
+    data: {
+        labels: Object.keys(positionCounts).sort((a, b) => a - b).map(pos => pos + (pos == 1 ? 'st' : pos == 2 ? 'nd' : pos == 3 ? 'rd' : 'th')),
+        datasets: [{
+            label: 'Frequency',
+            data: Object.keys(positionCounts).sort((a, b) => a - b).map(pos => positionCounts[pos]),
+            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                },
+                title: {
+                    display: true,
+                    text: 'Number of Games'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Final Position'
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

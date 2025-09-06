@@ -77,7 +77,7 @@
                     <p><strong>Recent Players:</strong></p>
                     <ul class="list-unstyled">
                         {% for player in players[-3:] %}
-                            <li>• {{ player.nickname }}</li>
+                            <li>• <a href="{{ url_for('player_stats', player_id=player.id) }}" class="text-decoration-none">{{ player.nickname }}</a></li>
                         {% endfor %}
                     </ul>
                 {% else %}

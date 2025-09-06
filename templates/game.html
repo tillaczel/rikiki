@@ -55,7 +55,7 @@
                                         {% else %}
                                             <span class="badge" style="background: linear-gradient(135deg, #1b5e20 0%, #0d4f1a 100%); color: white;">{{ game_player.total_points }}</span>
                                         {% endif %}
-                                        {{ game_player.player.nickname }}
+                                        <a href="{{ url_for('player_stats', player_id=game_player.player.id) }}" class="text-decoration-none">{{ game_player.player.nickname }}</a>
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -101,7 +101,7 @@
                                         {% else %}
                                             <span class="badge" style="background: linear-gradient(135deg, #ef6c00 0%, #e65100 100%); color: white;">{{ result.guess }}</span>
                                         {% endif %}
-                                        {{ result.player.nickname }}
+                                        <a href="{{ url_for('player_stats', player_id=result.player.id) }}" class="text-decoration-none">{{ result.player.nickname }}</a>
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -243,7 +243,7 @@
                                                 <div class="row align-items-center">
                                                     <div class="col-md-3">
                                                         <label class="form-label mb-0">
-                                                            {{ result.player.nickname }}
+                                                            <a href="{{ url_for('player_stats', player_id=result.player.id) }}" class="text-decoration-none">{{ result.player.nickname }}</a>
                                                             {% if loop.index == round_results|length %}
                                                                 <span class="badge bg-warning">Dealer</span>
                                                             {% endif %}
@@ -325,7 +325,7 @@
                                         <div class="row align-items-center">
                                             <div class="col-md-3">
                                                 <label class="form-label mb-0">
-                                                    {{ result.player.nickname }}
+                                                    <a href="{{ url_for('player_stats', player_id=result.player.id) }}" class="text-decoration-none">{{ result.player.nickname }}</a>
                                                     {% if loop.index == round_results|length %}
                                                         <span class="badge bg-warning">Dealer</span>
                                                     {% endif %}
@@ -402,7 +402,9 @@
                             {% for game_player in game_players %}
                                 <tr>
                                     <td>
-                                        <strong>{{ game_player.player.nickname }}</strong>
+                                        <a href="{{ url_for('player_stats', player_id=game_player.player.id) }}" class="text-decoration-none">
+                                            <strong>{{ game_player.player.nickname }}</strong>
+                                        </a>
                                     </td>
                                     <td>
                                         {% set max_points = game_players|map(attribute='total_points')|max %}

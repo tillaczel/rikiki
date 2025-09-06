@@ -613,6 +613,168 @@ def edit_game(game_id):
 
 
 
+@app.route('/player/<int:player_id>')
+def player_stats(player_id):
+    player = Player.query.get_or_404(player_id)
+    
+    # Get all games this player has participated in
+    game_players = GamePlayer.query.filter_by(player_id=player_id).all()
+    game_ids = [gp.game_id for gp in game_players]
+    games = Game.query.filter(Game.id.in_(game_ids)).all()
+    
+    # Separate completed and active games
+    completed_games = [g for g in games if not g.is_active]
+    active_games = [g for g in games if g.is_active]
+    
+    # Calculate basic statistics
+    total_games = len(completed_games)
+    total_rounds_played = 0
+    total_correct_guesses = 0
+    total_guesses = 0
+    total_points = 0
+    wins = 0
+    positions = []
+    opponent_stats = {}
+    
+    # Process each completed game
+    for game in completed_games:
+        # Get player's performance in this game
+        game_player = GamePlayer.query.filter_by(game_id=game.id, player_id=player_id).first()
+        if not game_player:
+            continue
+            
+        # Count rounds played
+        rounds_in_game = Round.query.filter_by(game_id=game.id, is_completed=True).all()
+        total_rounds_played += len(rounds_in_game)
+        
+        # Calculate position in this game
+        all_game_players = GamePlayer.query.filter_by(game_id=game.id).order_by(GamePlayer.total_points.desc()).all()
+        position = 1
+        for i, gp in enumerate(all_game_players):
+            if gp.player_id == player_id:
+                position = i + 1
+                break
+        positions.append(position)
+        
+        # Check if won (1st place)
+        if position == 1:
+            wins += 1
+        
+        # Add to total points
+        total_points += game_player.total_points
+        
+        # Count correct guesses and total guesses
+        for round_obj in rounds_in_game:
+            round_result = RoundResult.query.filter_by(
+                round_id=round_obj.id, 
+                player_id=player_id
+            ).first()
+            if round_result:
+                total_guesses += 1
+                if round_result.guess == round_result.hits:
+                    total_correct_guesses += 1
+        
+        # Track opponents
+        other_players = [gp for gp in all_game_players if gp.player_id != player_id]
+        for other_gp in other_players:
+            opponent_id = other_gp.player_id
+            opponent = Player.query.get(opponent_id)
+            if opponent_id not in opponent_stats:
+                opponent_stats[opponent_id] = {
+                    'player': opponent,
+                    'games_played': 0,
+                    'wins_against': 0,
+                    'total_points_against': 0,
+                    'total_points_opponent': 0
+                }
+            
+            opponent_stats[opponent_id]['games_played'] += 1
+            opponent_stats[opponent_id]['total_points_against'] += game_player.total_points
+            opponent_stats[opponent_id]['total_points_opponent'] += other_gp.total_points
+            
+            # Check if won against this opponent
+            if position < [i+1 for i, gp in enumerate(all_game_players) if gp.player_id == opponent_id][0]:
+                opponent_stats[opponent_id]['wins_against'] += 1
+    
+    # Calculate derived statistics
+    win_rate = (wins / total_games * 100) if total_games > 0 else 0
+    correct_guess_ratio = (total_correct_guesses / total_guesses * 100) if total_guesses > 0 else 0
+    average_position = sum(positions) / len(positions) if positions else 0
+    average_points_per_game = total_points / total_games if total_games > 0 else 0
+    average_points_per_round = total_points / total_rounds_played if total_rounds_played > 0 else 0
+    
+    # Additional statistics
+    best_position = min(positions) if positions else 0
+    worst_position = max(positions) if positions else 0
+    first_place_finishes = positions.count(1) if positions else 0
+    last_place_finishes = positions.count(max(positions)) if positions else 0
+    
+    # Calculate consistency (lower standard deviation = more consistent)
+    if len(positions) > 1:
+        position_variance = sum((pos - average_position) ** 2 for pos in positions) / len(positions)
+        position_std_dev = position_variance ** 0.5
+    else:
+        position_std_dev = 0
+    
+    # Calculate win rate against each opponent
+    for opponent_id, stats in opponent_stats.items():
+        stats['win_rate_against'] = (stats['wins_against'] / stats['games_played'] * 100) if stats['games_played'] > 0 else 0
+        stats['avg_points_against'] = stats['total_points_against'] / stats['games_played'] if stats['games_played'] > 0 else 0
+        stats['avg_points_opponent'] = stats['total_points_opponent'] / stats['games_played'] if stats['games_played'] > 0 else 0
+    
+    # Sort opponents by games played (most common first)
+    sorted_opponents = sorted(opponent_stats.values(), key=lambda x: x['games_played'], reverse=True)
+    
+    # Get recent games (last 10)
+    recent_games = sorted(completed_games, key=lambda x: x.ended_at or x.created_at, reverse=True)[:10]
+    
+    # Prepare chart data for performance over time
+    chart_data = {
+        'labels': [],
+        'datasets': [{
+            'label': 'Position',
+            'data': [],
+            'borderColor': 'rgb(75, 192, 192)',
+            'backgroundColor': 'rgba(75, 192, 192, 0.2)',
+            'tension': 0.1
+        }]
+    }
+    
+    # Add data points for each game (in chronological order)
+    chronological_games = sorted(completed_games, key=lambda x: x.ended_at or x.created_at)
+    for game in chronological_games:
+        all_game_players = GamePlayer.query.filter_by(game_id=game.id).order_by(GamePlayer.total_points.desc()).all()
+        position = 1
+        for i, gp in enumerate(all_game_players):
+            if gp.player_id == player_id:
+                position = i + 1
+                break
+        
+        chart_data['labels'].append(f'Game {game.id}')
+        chart_data['datasets'][0]['data'].append(position)
+    
+    return render_template('player_stats.html',
+                         player=player,
+                         total_games=total_games,
+                         total_rounds_played=total_rounds_played,
+                         wins=wins,
+                         win_rate=win_rate,
+                         correct_guess_ratio=correct_guess_ratio,
+                         average_position=average_position,
+                         average_points_per_game=average_points_per_game,
+                         average_points_per_round=average_points_per_round,
+                         total_points=total_points,
+                         positions=positions,
+                         best_position=best_position,
+                         worst_position=worst_position,
+                         first_place_finishes=first_place_finishes,
+                         last_place_finishes=last_place_finishes,
+                         position_std_dev=position_std_dev,
+                         opponent_stats=sorted_opponents,
+                         recent_games=recent_games,
+                         active_games=active_games,
+                         chart_data=chart_data)
+
 @app.route('/delete_game/<int:game_id>', methods=['POST'])
 def delete_game(game_id):
     game = Game.query.get_or_404(game_id)
